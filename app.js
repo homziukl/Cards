@@ -14,7 +14,7 @@
     'deckCount','jokersPerDeck','playerCount','handSize','totalRounds','botStyle',
     'entryMin','drawPerTurn','runMin','setMin','aceLow','aceHigh','jokerWild','allowRearrange','initialMeldOwnCardsOnly',
     'rankEditor','roundRulesList','addRoundRuleBtn','applyRulesBtn','newGameBtn','exportBtn','loadJsonBtn','syncJsonBtn','rulesJson',
-    'rulesPanel','toggleEditorBtn','showRulesBtn','activeRuleHint','rulesDialog','closeRulesDialogBtn','rulesHumanView','rulesDialogSubtitle',
+    'rulesPanel','toggleEditorBtn','closeEditorInlineBtn','showRulesBtn','activeRuleHint','rulesDialog','closeRulesDialogBtn','rulesHumanView','rulesDialogSubtitle',
     'turnLabel','scoreLabel','opponents','deckPile','deckCountLabel','drawBtn','drawState','newGroupBtn','undoTurnBtn','endTurnBtn',
     'meldBoard','boardValidation','playerHand','humanStatus','discardHint','playerMetaScore','log','toast'
   ];
@@ -29,6 +29,8 @@
   let dragPayload = null;
   let discardHintTimer = null;
   let discardHintCache = { key:null, count:null };
+  let touchDrag = null;
+  let suppressClickUntil = 0;
 
   function defaultRules() {
     return {
@@ -276,7 +278,7 @@
   function exportJson() {
     syncJsonText();
     const blob=new Blob([els.rulesJson.value],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-ukladanka-v0.3.2.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.4.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   function makeDeck() {
@@ -816,7 +818,9 @@
             node.draggable=true; node.classList.add('clickable');
             node.addEventListener('dragstart',e=>{ dragPayload={type:'table',cardUid:card.uid,fromGroupId:group.id}; node.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
             node.addEventListener('dragend',()=>{node.classList.remove('dragging'); dragPayload=null;});
+            attachTouchDrag(node,()=>({type:'table',cardUid:card.uid,fromGroupId:group.id}));
             node.addEventListener('click',e=>{
+              if(Date.now()<suppressClickUntil) { e.preventDefault(); e.stopPropagation(); return; }
               e.stopPropagation();
               if(activeGroupId && activeGroupId!==group.id) moveTableCard(card.uid,group.id,activeGroupId);
               else activeGroupId=group.id;
@@ -866,7 +870,7 @@
       if(humanTurn && drawRequirementMet()) {
         node.classList.add('clickable');
         if(!state.turnSnapshot?.players[0].hand.some(c=>c.uid===card.uid)) node.classList.add('new-this-turn');
-        node.addEventListener('click',()=>addHandCardToActive(card.uid));
+        node.addEventListener('click',e=>{ if(Date.now()<suppressClickUntil){ e.preventDefault(); return; } addHandCardToActive(card.uid); });
       }
       node.addEventListener('dragstart',e=>{
         dragPayload={type:'hand',cardUid:card.uid,fromHandIndex:index};
@@ -880,6 +884,7 @@
         clearHandDropIndicator();
         dragPayload=null;
       });
+      attachTouchDrag(node,()=>({type:'hand',cardUid:card.uid,fromHandIndex:Number(node.dataset.handIndex)}));
       els.playerHand.appendChild(node);
     });
     setupHandDropOnce();
@@ -951,6 +956,158 @@
     });
   }
 
+  function attachTouchDrag(node,payloadFactory) {
+    node.classList.add('touch-draggable');
+    node.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse' || e.button!==0 || touchDrag) return;
+      const payload=payloadFactory();
+      if(!payload) return;
+      touchDrag={ pointerId:e.pointerId, node, payload, startX:e.clientX, startY:e.clientY, dragging:false, ghost:null, lastTarget:null };
+      try { node.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    node.addEventListener('pointermove',e=>{
+      if(!touchDrag || touchDrag.pointerId!==e.pointerId || touchDrag.node!==node) return;
+      const dx=e.clientX-touchDrag.startX, dy=e.clientY-touchDrag.startY;
+      if(!touchDrag.dragging && Math.hypot(dx,dy)>=8) startTouchDrag(e);
+      if(!touchDrag.dragging) return;
+      e.preventDefault();
+      moveTouchGhost(e.clientX,e.clientY);
+      autoScrollTouchZones(e.clientX,e.clientY);
+      paintTouchDropTarget(e.clientX,e.clientY);
+    },{passive:false});
+    node.addEventListener('pointerup',e=>finishTouchDrag(e,false));
+    node.addEventListener('pointercancel',e=>finishTouchDrag(e,true));
+  }
+
+  function startTouchDrag(e) {
+    if(!touchDrag || touchDrag.dragging) return;
+    touchDrag.dragging=true;
+    dragPayload=touchDrag.payload;
+    suppressClickUntil=Date.now()+500;
+    touchDrag.node.classList.add('dragging');
+    document.body.classList.add('touch-dragging');
+    const rect=touchDrag.node.getBoundingClientRect();
+    const ghost=touchDrag.node.cloneNode(true);
+    ghost.classList.remove('dragging','hand-insert-before','hand-insert-after');
+    ghost.classList.add('touch-drag-ghost');
+    ghost.style.width=`${rect.width}px`;
+    ghost.style.height=`${rect.height}px`;
+    touchDrag.ghost=ghost;
+    document.body.appendChild(ghost);
+    moveTouchGhost(e.clientX,e.clientY);
+  }
+
+  function moveTouchGhost(x,y) {
+    if(!touchDrag?.ghost) return;
+    touchDrag.ghost.style.transform=`translate3d(${Math.round(x)}px,${Math.round(y)}px,0) translate(-50%,-55%) rotate(2deg)`;
+  }
+
+  function autoScrollTouchZones(x,y) {
+    for(const zone of [els.playerHand,els.meldBoard]) {
+      if(!zone || zone.scrollWidth<=zone.clientWidth+2) continue;
+      const r=zone.getBoundingClientRect();
+      if(y<r.top || y>r.bottom) continue;
+      const edge=Math.min(54,Math.max(28,r.width*.12));
+      if(x<r.left+edge) zone.scrollLeft-=18;
+      else if(x>r.right-edge) zone.scrollLeft+=18;
+    }
+  }
+
+  function clearTouchDropTargets() {
+    document.querySelectorAll('.touch-drop-target').forEach(el=>el.classList.remove('touch-drop-target'));
+    clearHandDropIndicator();
+  }
+
+  function elementBelowTouch(x,y) {
+    if(touchDrag?.ghost) touchDrag.ghost.style.visibility='hidden';
+    const el=document.elementFromPoint(x,y);
+    if(touchDrag?.ghost) touchDrag.ghost.style.visibility='visible';
+    return el;
+  }
+
+  function handDropTargetAt(x,y) {
+    const below=elementBelowTouch(x,y);
+    const target=below?.closest?.('.card[data-card-uid]');
+    if(!target || target.dataset.cardUid===touchDrag?.payload?.cardUid) return {targetUid:null,after:true,target:null};
+    const rect=target.getBoundingClientRect();
+    return {targetUid:target.dataset.cardUid,after:x>rect.left+rect.width/2,target};
+  }
+
+  function paintTouchDropTarget(x,y) {
+    clearTouchDropTargets();
+    const below=elementBelowTouch(x,y);
+    if(!below || !touchDrag) return;
+    const groupEl=below.closest?.('.meld-group');
+    const handEl=below.closest?.('#playerHand');
+    if(groupEl) {
+      const group=state.tableGroups.find(g=>g.id===groupEl.dataset.groupId);
+      if(group && (touchDrag.payload.type==='table' || canDropHandCardIntoGroup(group))) groupEl.classList.add('touch-drop-target');
+      return;
+    }
+    if(handEl) {
+      handEl.classList.add('touch-drop-target');
+      if(touchDrag.payload.type==='hand') {
+        const pos=handDropTargetAt(x,y);
+        if(pos.target) pos.target.classList.add(pos.after?'hand-insert-after':'hand-insert-before');
+      }
+    }
+  }
+
+  function finishTouchDrag(e,cancelled=false) {
+    if(!touchDrag || touchDrag.pointerId!==e.pointerId) return;
+    const td=touchDrag;
+    if(td.dragging) {
+      e.preventDefault();
+      if(!cancelled) performTouchDrop(e.clientX,e.clientY,td.payload);
+      suppressClickUntil=Date.now()+500;
+    }
+    try { td.node.releasePointerCapture(e.pointerId); } catch (_) {}
+    td.node.classList.remove('dragging');
+    td.ghost?.remove();
+    document.body.classList.remove('touch-dragging');
+    clearTouchDropTargets();
+    dragPayload=null;
+    touchDrag=null;
+  }
+
+  function performTouchDrop(x,y,payload) {
+    const below=elementBelowTouch(x,y);
+    if(!below || !payload) return;
+    const groupEl=below.closest?.('.meld-group');
+    const handEl=below.closest?.('#playerHand');
+    if(groupEl) {
+      const group=state.tableGroups.find(g=>g.id===groupEl.dataset.groupId);
+      if(!group) return;
+      activeGroupId=group.id;
+      if(payload.type==='hand') {
+        if(canDropHandCardIntoGroup(group)) addHandCardToSpecificGroup(payload.cardUid,group.id);
+      } else if(payload.type==='table') {
+        moveTableCard(payload.cardUid,payload.fromGroupId,group.id);
+      }
+      return;
+    }
+    if(handEl) {
+      if(payload.type==='table') {
+        returnCardToHand(payload.cardUid,payload.fromGroupId);
+      } else if(payload.type==='hand') {
+        const pos=handDropTargetAt(x,y);
+        if(reorderHandCard(payload.cardUid,pos.targetUid,pos.after)) renderHumanHand();
+      }
+    }
+  }
+
+  function setEditorOpen(open) {
+    els.rulesPanel.classList.toggle('collapsed',!open);
+    els.toggleEditorBtn.setAttribute('aria-expanded',String(open));
+    const mobile=window.matchMedia('(max-width:1050px)').matches;
+    document.body.classList.toggle('editor-open',open && mobile);
+  }
+
+  function syncEditorViewportState() {
+    const open=!els.rulesPanel.classList.contains('collapsed');
+    document.body.classList.toggle('editor-open',open && window.matchMedia('(max-width:1050px)').matches);
+  }
+
   function cardElement(card,jokerAssignment=null) {
     const div=document.createElement('div'); div.className='card';
     if(card.joker) {
@@ -1013,7 +1170,8 @@
   els.loadJsonBtn.addEventListener('click',loadJson);
   els.exportBtn.addEventListener('click',exportJson);
   els.addRoundRuleBtn.addEventListener('click',()=>addRoundRule());
-  els.toggleEditorBtn.addEventListener('click',()=>els.rulesPanel.classList.toggle('collapsed'));
+  els.toggleEditorBtn.addEventListener('click',()=>setEditorOpen(els.rulesPanel.classList.contains('collapsed')));
+  els.closeEditorInlineBtn.addEventListener('click',()=>setEditorOpen(false));
   els.showRulesBtn.addEventListener('click',showRulesDialog);
   els.activeRuleHint.addEventListener('click',showRulesDialog);
   els.closeRulesDialogBtn.addEventListener('click',()=>els.rulesDialog.close());
@@ -1022,6 +1180,9 @@
   els.newGroupBtn.addEventListener('click',()=>createGroup(true));
   els.undoTurnBtn.addEventListener('click',undoTurn);
   els.endTurnBtn.addEventListener('click',()=>endTurn(0));
+  els.discardHint.addEventListener('click',()=>{ if(els.discardHint.title) toast(els.discardHint.title); });
+  window.addEventListener('resize',syncEditorViewportState);
+  window.addEventListener('orientationchange',syncEditorViewportState);
 
   const formIds=['deckCount','jokersPerDeck','playerCount','handSize','totalRounds','botStyle','entryMin','drawPerTurn','runMin','setMin','aceLow','aceHigh','jokerWild','allowRearrange','initialMeldOwnCardsOnly'];
   for(const id of formIds) els[id].addEventListener('change',()=>{readFormIntoEditorModel();if(id==='totalRounds')renderRoundRulesEditor();syncJsonText();});
@@ -1029,5 +1190,6 @@
   // Mały interfejs diagnostyczny do przyszłych testów silnika.
   window.CardSandboxDebug={ analyzeGroup:(cards)=>analyzeGroup(cards), getRules:()=>deepClone(rules) };
 
+  setEditorOpen(false);
   syncFormFromEditorModel(); rules=deepClone(editorModel); newGame();
 })();

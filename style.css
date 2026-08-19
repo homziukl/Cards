@@ -39,3 +39,272 @@ dialog { width:min(800px,calc(100vw - 30px)); max-height:85vh; overflow:auto; co
 .discard-hint.zero { background:rgba(155,93,48,.24); border-color:rgba(238,168,112,.32); }
 .discard-hint.pending { opacity:.72; }
 .discard-hint.disabled { opacity:.42; }
+
+/* 0.3.4 — mobile / touch / orientation */
+html { min-height:100%; background:#111; }
+body { min-height:100dvh; padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+header { padding-left:max(18px,env(safe-area-inset-left)); padding-right:max(18px,env(safe-area-inset-right)); }
+.panel-mobile-head { display:none; }
+.touch-draggable { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+@media (pointer:coarse) {
+  .touch-draggable { touch-action:none; }
+  button,summary,input,select { min-height:42px; }
+  .card.clickable:hover { transform:none; box-shadow:0 4px 10px rgba(0,0,0,.25); }
+}
+body.touch-dragging { overflow:hidden; overscroll-behavior:none; }
+.touch-drag-ghost {
+  position:fixed !important;
+  left:0 !important;
+  top:0 !important;
+  z-index:1000 !important;
+  margin:0 !important;
+  pointer-events:none !important;
+  opacity:.92 !important;
+  filter:drop-shadow(0 12px 16px rgba(0,0,0,.45));
+  transition:none !important;
+  transform-origin:center center;
+}
+.meld-group.touch-drop-target,
+.hand.touch-drop-target {
+  border-color:#fff !important;
+  box-shadow:0 0 0 3px rgba(255,255,255,.24), inset 0 0 0 1px rgba(255,255,255,.35) !important;
+  background:rgba(255,255,255,.09) !important;
+}
+
+@media (max-width:1050px) {
+  body.editor-open { overflow:hidden; }
+  .panel:not(.collapsed) {
+    display:block;
+    position:fixed;
+    inset:0;
+    z-index:80;
+    max-height:100dvh;
+    overflow:auto;
+    padding:calc(10px + env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+    border:0;
+    background:#171717;
+  }
+  .panel-mobile-head {
+    position:sticky;
+    top:calc(-10px - env(safe-area-inset-top));
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin:-10px -14px 12px;
+    padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+    background:rgba(23,23,23,.97);
+    border-bottom:1px solid #303030;
+    backdrop-filter:blur(10px);
+  }
+  .panel:not(.collapsed) h2 { margin-top:4px; }
+}
+
+/* Telefon pionowo */
+@media (max-width:700px) and (orientation:portrait) {
+  header {
+    min-height:58px;
+    padding-top:max(7px,env(safe-area-inset-top));
+    padding-bottom:7px;
+    padding-left:max(9px,env(safe-area-inset-left));
+    padding-right:max(9px,env(safe-area-inset-right));
+    align-items:center;
+  }
+  h1 { font-size:17px; white-space:nowrap; }
+  .version { font-size:10px; }
+  .header-actions { gap:5px; flex-wrap:nowrap; }
+  .header-actions button { min-height:38px; padding:7px 8px; font-size:11px; }
+  .table-wrap { padding:5px; }
+  .statusbar {
+    grid-template-columns:1fr auto;
+    gap:4px 7px;
+    padding:5px 7px;
+    margin-bottom:5px;
+    border-radius:8px;
+    font-size:10px;
+  }
+  .statusbar .rule-chip { grid-column:1 / -1; grid-row:2; min-height:30px; padding:4px 6px; font-size:10px; }
+  .statusbar > :last-child { text-align:right; }
+  .table {
+    min-height:calc(100dvh - 112px);
+    border-width:4px;
+    border-radius:14px;
+    padding:6px;
+    grid-template-rows:auto auto auto;
+    gap:5px;
+    overflow:visible;
+  }
+  .opponents {
+    min-height:86px;
+    flex-wrap:nowrap;
+    justify-content:flex-start;
+    overflow-x:auto;
+    overflow-y:hidden;
+    gap:6px;
+    padding:0 3px;
+    scrollbar-width:none;
+  }
+  .opponents::-webkit-scrollbar { display:none; }
+  .opponent { min-width:112px; }
+  .opponent .name { font-size:10px; margin-bottom:1px; white-space:nowrap; }
+  .mini-hand { height:61px; overflow:hidden; }
+  .mini-hand .card { width:55px; height:80px; margin-left:-43px; transform:scale(.55); }
+  .meld-center-zone { grid-template-columns:1fr; gap:5px; min-height:0; }
+  .deck-column {
+    display:grid;
+    grid-template-columns:44px 50px auto 1fr;
+    align-items:center;
+    gap:6px;
+    padding:2px 4px;
+    background:rgba(0,0,0,.10);
+    border-radius:9px;
+  }
+  .deck-column .pile-title,.deck-column .microcopy { display:none; }
+  .deck-card { width:44px; height:64px; border-width:3px; }
+  .pile-count { margin:0; font-size:10px; }
+  .deck-column .tiny { margin:0; min-height:34px; padding:5px 7px; }
+  .board-shell { padding:5px; border-radius:10px; }
+  .board-toolbar { flex-direction:row; align-items:center; gap:5px; margin-bottom:5px; }
+  .board-toolbar > div:first-child { min-width:0; font-size:11px; }
+  .board-toolbar .row { flex-wrap:nowrap; gap:4px; margin-left:auto; }
+  .board-toolbar button { min-height:34px; padding:5px 6px; font-size:9px; white-space:nowrap; }
+  .board-validation { display:block; margin:1px 0 0; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+  .meld-board { min-height:205px; gap:6px; padding:1px; }
+  .meld-empty { padding:65px 8px; font-size:11px; }
+  .meld-group { flex:1 1 100%; width:100%; min-width:0; min-height:116px; padding:5px; border-radius:9px; }
+  .meld-head { margin-bottom:4px; font-size:9px; }
+  .meld-cards { min-height:86px; gap:3px; flex-wrap:wrap; }
+  .meld-cards .card { width:57px; height:83px; padding:4px; border-radius:7px; }
+  .meld-cards .card .center-suit { font-size:23px; }
+  .meld-cards .card .corner { font-size:11px; }
+  .board-help { display:none; }
+  .player-zone {
+    position:sticky;
+    bottom:env(safe-area-inset-bottom);
+    z-index:16;
+    margin:2px -2px -2px;
+    padding:5px 2px calc(2px + env(safe-area-inset-bottom));
+    border-radius:10px 10px 0 0;
+    background:linear-gradient(to bottom,rgba(20,65,40,.94),rgba(15,50,31,.99));
+    box-shadow:0 -6px 16px rgba(0,0,0,.20);
+  }
+  .player-meta { margin:0 4px 2px; font-size:10px; }
+  .player-meta-right { gap:4px; }
+  .discard-hint { min-width:31px; padding:1px 6px; font-size:9px; }
+  .hand {
+    justify-content:flex-start;
+    min-height:103px;
+    padding:6px 7px 1px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    overscroll-behavior-x:contain;
+  }
+  .hand::-webkit-scrollbar { display:none; }
+  .hand .card { width:62px; height:91px; margin-left:-23px; padding:4px; border-radius:7px; }
+  .hand .card:first-child { margin-left:0; }
+  .hand .card .center-suit { font-size:26px; }
+  .hand .card .corner { font-size:12px; }
+  .player-zone > .microcopy { display:none; }
+  .log-panel { margin-top:5px; padding:7px; }
+  #log { max-height:75px; font-size:9px; }
+  .log-panel h3 { font-size:10px; margin-bottom:3px; }
+  dialog { width:calc(100vw - 12px); max-height:calc(100dvh - 12px); padding:12px; }
+  .dialog-head { position:sticky; top:-12px; z-index:3; background:#1d1d1d; padding-top:10px; }
+  .rule-section ul { font-size:11px; }
+  .grid2,.round-rule-grid { grid-template-columns:1fr; }
+  .order-row { grid-template-columns:34px 1fr 72px 68px; gap:4px; }
+}
+
+/* Telefon poziomo — więcej stołu, niższa ręka i header */
+@media (orientation:landscape) and (max-height:600px) {
+  header {
+    min-height:43px;
+    padding-top:max(4px,env(safe-area-inset-top));
+    padding-bottom:4px;
+    padding-left:max(8px,env(safe-area-inset-left));
+    padding-right:max(8px,env(safe-area-inset-right));
+  }
+  header p { display:none; }
+  h1 { font-size:15px; }
+  .version { font-size:9px; }
+  .header-actions { flex-wrap:nowrap; gap:4px; }
+  .header-actions button { min-height:32px; padding:4px 7px; font-size:10px; }
+  .table-wrap { padding:4px; }
+  .statusbar {
+    grid-template-columns:auto minmax(120px,1fr) auto;
+    gap:5px;
+    margin-bottom:4px;
+    padding:3px 7px;
+    border-radius:7px;
+    font-size:9px;
+  }
+  .rule-chip { min-height:27px; padding:3px 6px; font-size:9px; }
+  .table {
+    min-height:calc(100dvh - 82px);
+    border-width:4px;
+    border-radius:12px;
+    padding:5px;
+    grid-template-rows:61px minmax(150px,1fr) 105px;
+    gap:3px;
+    overflow:hidden;
+  }
+  .opponents { flex-wrap:nowrap; gap:8px; overflow:hidden; align-items:flex-start; }
+  .opponent { min-width:110px; }
+  .opponent .name { font-size:9px; margin-bottom:0; }
+  .opponent .mini-hand { height:47px; overflow:hidden; }
+  .mini-hand .card { width:50px; height:72px; margin-left:-43px; transform:scale(.48); }
+  .meld-center-zone { grid-template-columns:72px minmax(0,1fr); gap:5px; min-height:0; max-width:none; }
+  .pile-box { align-self:start; padding-top:2px; }
+  .pile-title,.drawState { display:none; }
+  .deck-card { width:42px; height:61px; border-width:3px; }
+  .pile-count { font-size:9px; margin-top:2px; }
+  .deck-column .tiny { margin-top:3px; min-height:25px; padding:3px 5px; font-size:8px; }
+  .board-shell { padding:4px; border-radius:8px; min-height:0; overflow:hidden; }
+  .board-toolbar { flex-direction:row; align-items:center; gap:4px; margin-bottom:3px; }
+  .board-toolbar > div:first-child { font-size:10px; white-space:nowrap; }
+  .board-toolbar .row { flex-wrap:nowrap; gap:3px; margin-left:auto; }
+  .board-toolbar button { min-height:27px; padding:3px 5px; font-size:8px; white-space:nowrap; }
+  .board-validation { font-size:8px; margin-left:3px; }
+  .meld-board {
+    min-height:112px;
+    max-height:calc(100dvh - 228px);
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    overflow-y:hidden;
+    gap:5px;
+    scrollbar-width:thin;
+  }
+  .meld-group { flex:0 0 auto; min-width:145px; min-height:105px; padding:4px; border-radius:8px; }
+  .meld-head { margin-bottom:3px; font-size:8px; }
+  .meld-cards { min-height:77px; gap:2px; flex-wrap:nowrap; }
+  .meld-cards .card { width:50px; height:73px; padding:3px; border-radius:6px; }
+  .meld-cards .card .center-suit { font-size:20px; }
+  .meld-cards .card .corner { font-size:10px; }
+  .joker-resolution { font-size:6px; }
+  .board-help { display:none; }
+  .player-zone { min-height:0; }
+  .player-meta { margin:0 4px 1px; font-size:9px; }
+  .discard-hint { min-width:29px; padding:1px 5px; font-size:8px; }
+  .hand {
+    justify-content:center;
+    min-height:84px;
+    padding:2px 8px 0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+  }
+  .hand::-webkit-scrollbar { display:none; }
+  .hand .card { width:55px; height:80px; margin-left:-18px; padding:3px; border-radius:6px; }
+  .hand .card .center-suit { font-size:22px; }
+  .hand .card .corner { font-size:10px; }
+  .player-zone > .microcopy { display:none; }
+  .log-panel { display:none; }
+  dialog { width:calc(100vw - 10px); max-height:calc(100dvh - 10px); }
+}
+@media (orientation:landscape) and (max-height:600px) {
+  header { align-items:center; }
+  .statusbar > :last-child { text-align:right; }
+  .deck-column { display:block; }
+}

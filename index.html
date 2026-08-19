@@ -2,25 +2,26 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Card Sandbox 0.3.3 — Siódemki</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Card Sandbox 0.3.4 — Siódemki Mobile</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <div>
-      <h1>Card Sandbox <span class="version">0.3.3</span></h1>
+      <h1>Card Sandbox <span class="version">0.3.4</span></h1>
       <p>Preset „Siódemki”: remikowy stół z przebudową meldów i podpowiedzią solvera.</p>
     </div>
     <div class="header-actions">
       <button id="newGameBtn">Nowa gra</button>
       <button id="showRulesBtn" class="secondary">Zasady</button>
-      <button id="toggleEditorBtn" class="secondary">Edytor</button>
+      <button id="toggleEditorBtn" class="secondary" aria-expanded="false" aria-controls="rulesPanel">Edytor</button>
     </div>
   </header>
 
   <main>
-    <aside id="rulesPanel" class="panel">
+    <aside id="rulesPanel" class="panel collapsed">
+      <div class="panel-mobile-head"><strong>Edytor gry</strong><button id="closeEditorInlineBtn" class="secondary" type="button">Zamknij</button></div>
       <h2>Konfiguracja</h2>
 
       <h3>Stół</h3>
@@ -72,13 +73,13 @@
         <label class="check"><input id="initialMeldOwnCardsOnly" type="checkbox" checked /> Wejście ≥ minimum wyłącznie własnymi kartami</label>
       </section>
 
-      <details id="advancedEditor" open>
+      <details id="advancedEditor">
         <summary>Zaawansowany edytor wartości kart</summary>
         <p class="microcopy">Kolejność służy sekwensom. Wartość służy wejściu i liczeniu ręki. Dla tego presetu J/Q/K = 10, A = 11; niski As w sekwensie dynamicznie = 1.</p>
         <div id="rankEditor" class="order-editor"></div>
       </details>
 
-      <details id="roundEditor" open>
+      <details id="roundEditor">
         <summary>Zasady poszczególnych rund</summary>
         <p class="microcopy">Puste pole = reguła bazowa. Nadpisanie działa tylko w wybranej rundzie.</p>
         <div id="roundRulesList" class="round-rules-list"></div>
@@ -132,7 +133,7 @@
               </div>
             </div>
             <div id="meldBoard" class="meld-board"></div>
-            <div class="board-help">Kliknij układ, aby go uaktywnić. Kliknięcie karty z ręki przenosi ją do aktywnego układu. Karty można też przeciągać między układami. Nową kartę z tej tury możesz przeciągnąć z powrotem do ręki; starych kart ze stołu — nie.</div>
+            <div class="board-help">Kliknij układ, aby go uaktywnić. Kartę możesz kliknąć albo przeciągnąć myszą/palcem. Na telefonie przeciągaj bezpośrednio między ręką i układami. Nową kartę z tej tury możesz przeciągnąć z powrotem do ręki; starych kart ze stołu — nie.</div>
           </div>
         </div>
 
@@ -142,7 +143,7 @@
             <span class="player-meta-right"><span id="discardHint" class="discard-hint pending" title="Solver sprawdzi, ilu kart możesz się jeszcze pozbyć.">↘ …</span><span id="playerMetaScore">Ręka: 0</span></span>
           </div>
           <div id="playerHand" class="hand hand-dropzone" title="Przeciągaj karty, aby ułożyć rękę po swojemu"></div>
-          <div class="microcopy center-text">Karty w ręce możesz przeciągać i układać w dowolnej kolejności.</div>
+          <div class="microcopy center-text">Karty w ręce możesz przeciągać myszą lub palcem i układać w dowolnej kolejności.</div>
         </div>
       </div>
 
