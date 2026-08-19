@@ -1,4 +1,4 @@
-# Card Sandbox 0.3.6 — Siódemki Mobile
+# Card Sandbox 0.3.7 — Siódemki Mobile
 
 Lokalny proof-of-concept karcianego sandboxa z presetem **Siódemki**, botem korzystającym ze stołu i solverem podpowiadającym, ilu kart można się jeszcze pozbyć. Nie wymaga instalacji ani serwera — otwórz `index.html` w nowoczesnej przeglądarce albo opublikuj katalog przez GitHub Pages.
 
@@ -22,7 +22,7 @@ Lokalny proof-of-concept karcianego sandboxa z presetem **Siódemki**, botem kor
 - `PROSZĘ →` zatwierdza całą turę transakcyjnie,
 - `Cofnij turę` wraca do stanu sprzed dobrania.
 
-## 0.3.6 — telefon, dotyk i orientacja
+## 0.3.7 — telefon, dotyk i orientacja
 
 - edytor konfiguracji jest **domyślnie zamknięty**,
 - na telefonie edytor otwiera się jako pełnoekranowy panel i ma własny przycisk `Zamknij`,
@@ -51,7 +51,14 @@ Bot potrafi szukać takich przebudów i może korzystać z kart, które już le�
 Do repozytorium GitHub wrzuć zawartość tego katalogu tak, aby `index.html`, `app.js`, `engine-core.js` i `style.css` leżały obok siebie w katalogu publikowanym przez GitHub Pages.
 
 
-## 0.3.6
+## 0.3.7
 - Usunięto osobny przycisk/pole „Nowy układ”. Upuszczenie karty w wolnym miejscu stołu tworzy nowy układ automatycznie.
 - Poprawiono poziomy overflow na telefonach.
 - Ręka automatycznie zmniejsza i zagęszcza karty przy większej liczbie kart.
+
+## 0.3.7 — mobilny stół w rzędach
+
+- Na telefonie układy są ustawiane pionowo, po jednym na rząd — bez poziomego przewijania stołu.
+- Pomiędzy układami są subtelne strefy upuszczania; przeciągnięcie tam karty tworzy nowy rząd.
+- Działa w pionie i poziomie; w landscape przewijanie stołu jest pionowe.
+- Naprawiono CSS z 0.3.6 tak, aby reguły dopasowania szerokości i skalowania ręki były rzeczywiście stosowane.

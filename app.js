@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const BUILD_VERSION='0.3.6';
+  const BUILD_VERSION='0.3.7';
 
   const SUITS = [
     { id:'S', symbol:'♠', name:'pik', red:false },
@@ -280,7 +280,7 @@
   function exportJson() {
     syncJsonText();
     const blob=new Blob([els.rulesJson.value],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.6.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.7.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   function makeDeck() {
@@ -371,7 +371,14 @@
     const g={id:`g${groupUid++}`,cards:[]}; state.tableGroups.push(g); if (select) activeGroupId=g.id; render(); return g;
   }
 
-  function createGroupFromDrop(payload) {
+  function insertGroupAfter(g,afterGroupId=null) {
+    if(!afterGroupId) { state.tableGroups.push(g); return; }
+    const idx=state.tableGroups.findIndex(x=>x.id===afterGroupId);
+    if(idx<0) state.tableGroups.push(g);
+    else state.tableGroups.splice(idx+1,0,g);
+  }
+
+  function createGroupFromDrop(payload,afterGroupId=null) {
     if (!canHumanManipulate()) return false;
     if (!drawRequirementMet()) { toast('Najpierw dobierz kartę.'); return false; }
     if (!payload) return false;
@@ -381,7 +388,7 @@
       const idx=p.hand.findIndex(c=>c.uid===payload.cardUid);
       if (idx<0) return false;
       const g={id:`g${groupUid++}`,cards:[p.hand.splice(idx,1)[0]]};
-      state.tableGroups.push(g);
+      insertGroupAfter(g,afterGroupId);
       activeGroupId=g.id;
       cleanupEmptyGroups();
       render();
@@ -405,7 +412,9 @@
       if (idx<0) return false;
       const [card]=from.cards.splice(idx,1);
       const g={id:`g${groupUid++}`,cards:[card]};
-      state.tableGroups.push(g);
+      // Jeśli źródłowy układ zniknie, wstawianie „po nim” nie ma już sensu — wtedy dopinamy na końcu.
+      const sourceWillDisappear=from.cards.length===0;
+      insertGroupAfter(g,sourceWillDisappear && afterGroupId===from.id ? null : afterGroupId);
       activeGroupId=g.id;
       cleanupEmptyGroups();
       render();
@@ -432,8 +441,10 @@
       e.preventDefault();
       els.meldBoard.classList.remove('free-drop-target');
       const payload=dragPayload;
+      const lane=e.target.closest('.meld-new-row-drop');
+      const afterGroupId=lane?.dataset.afterGroupId || null;
       dragPayload=null;
-      createGroupFromDrop(payload);
+      createGroupFromDrop(payload,afterGroupId);
     });
   }
 
@@ -861,10 +872,19 @@
     }
   }
 
+  function appendNewRowDrop(afterGroupId=null) {
+    const lane=document.createElement('div');
+    lane.className='meld-new-row-drop';
+    if(afterGroupId) lane.dataset.afterGroupId=afterGroupId;
+    lane.innerHTML='<span>upuść → nowy rząd</span>';
+    els.meldBoard.appendChild(lane);
+  }
+
   function renderBoard() {
     els.meldBoard.innerHTML='';
     if(!state.tableGroups.length) {
-      const empty=document.createElement('div'); empty.className='meld-empty'; empty.textContent='Stół jest pusty. Dobierz kartę i przeciągnij ją tutaj — nowy układ utworzy się automatycznie.'; els.meldBoard.appendChild(empty);
+      const empty=document.createElement('div'); empty.className='meld-empty'; empty.textContent='Stół jest pusty. Dobierz kartę i przeciągnij ją tutaj.'; els.meldBoard.appendChild(empty);
+      appendNewRowDrop(null);
     }
     let validCount=0, invalidCount=0;
     for(const group of state.tableGroups) {
@@ -898,6 +918,7 @@
         cardsEl.appendChild(node);
       }
       els.meldBoard.appendChild(box);
+      appendNewRowDrop(group.id);
     }
     const allValid=invalidCount===0;
     els.boardValidation.className=`board-validation ${allValid?'ok':'bad'}`;
@@ -1115,11 +1136,16 @@
     const below=elementBelowTouch(x,y);
     if(!below || !touchDrag) return;
     const groupEl=below.closest?.('.meld-group');
+    const rowLane=below.closest?.('.meld-new-row-drop');
     const handEl=below.closest?.('#playerHand');
     const boardEl=below.closest?.('#meldBoard');
     if(groupEl) {
       const group=state.tableGroups.find(g=>g.id===groupEl.dataset.groupId);
       if(group && (touchDrag.payload.type==='table' || canDropHandCardIntoGroup(group))) groupEl.classList.add('touch-drop-target');
+      return;
+    }
+    if(rowLane) {
+      rowLane.classList.add('touch-drop-target');
       return;
     }
     if(boardEl) {
@@ -1155,6 +1181,7 @@
     const below=elementBelowTouch(x,y);
     if(!below || !payload) return;
     const groupEl=below.closest?.('.meld-group');
+    const rowLane=below.closest?.('.meld-new-row-drop');
     const handEl=below.closest?.('#playerHand');
     const boardEl=below.closest?.('#meldBoard');
     if(groupEl) {
@@ -1166,6 +1193,10 @@
       } else if(payload.type==='table') {
         moveTableCard(payload.cardUid,payload.fromGroupId,group.id);
       }
+      return;
+    }
+    if(rowLane) {
+      createGroupFromDrop(payload,rowLane.dataset.afterGroupId || null);
       return;
     }
     if(boardEl) {

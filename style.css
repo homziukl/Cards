@@ -321,4 +321,136 @@ body.touch-dragging { overflow:hidden; overscroll-behavior:none; }
   .meld-board, .hand { -webkit-overflow-scrolling:touch; }
   .card { -webkit-tap-highlight-color:transparent; }
 }
-\n\n/* 0.3.6 — mobile fit, drop-to-create and adaptive hand */\nhtml, body { max-width:100%; overflow-x:hidden; }\nmain, .table-wrap, .table, .meld-center-zone, .board-shell, .meld-board, .player-zone, .hand { min-width:0; max-width:100%; }\n.table-wrap { width:100%; overflow-x:hidden; }\n.table { width:100%; }\n.meld-center-zone { box-sizing:border-box; }\n.board-shell { width:100%; overflow:hidden; }\n.board-toolbar { min-width:0; }\n.board-toolbar > * { min-width:0; }\n.meld-board { width:100%; overflow:hidden; position:relative; }\n.meld-board.free-drop-target, .meld-board.touch-drop-target {\n  outline:2px dashed rgba(255,255,255,.72);\n  outline-offset:-4px;\n  background:rgba(255,255,255,.055);\n}\n.meld-empty { pointer-events:none; }\n\n/* Ręka skaluje się wraz z liczbą kart. */\n.hand.cards-many .card { width:64px; height:94px; margin-left:-27px; }\n.hand.cards-many .card .center-suit { font-size:27px; }\n.hand.cards-crowded .card { width:56px; height:82px; margin-left:-31px; padding:4px; }\n.hand.cards-crowded .card .center-suit { font-size:23px; }\n.hand.cards-crowded .card .corner { font-size:12px; }\n.hand.cards-packed .card { width:48px; height:70px; margin-left:-34px; padding:3px; }\n.hand.cards-packed .card .center-suit { font-size:19px; }\n.hand.cards-packed .card .corner { font-size:10px; }\n.hand.cards-packed .card.joker .center-suit { font-size:10px; }\n\n@media (max-width:700px) and (orientation:portrait) {\n  body { padding-left:0; padding-right:0; }\n  header, .table-wrap { width:100%; max-width:100vw; }\n  .table { overflow:hidden; }\n  .meld-center-zone, .board-shell, .meld-board { width:100%; max-width:100%; }\n  .meld-board { min-height:215px; padding:4px; }\n  .meld-group { flex:1 1 100%; max-width:100%; }\n  .board-toolbar { width:100%; }\n  .board-toolbar .row { flex-shrink:0; }\n  .hand { width:100%; max-width:100%; overflow-x:hidden; justify-content:center; padding-left:4px; padding-right:4px; }\n  .hand.cards-many .card { width:54px; height:79px; margin-left:-26px; }\n  .hand.cards-many .card .center-suit { font-size:22px; }\n  .hand.cards-many .card .corner { font-size:11px; }\n  .hand.cards-crowded .card { width:46px; height:67px; margin-left:-28px; padding:3px; }\n  .hand.cards-crowded .card .center-suit { font-size:18px; }\n  .hand.cards-crowded .card .corner { font-size:9px; }\n  .hand.cards-packed .card { width:40px; height:59px; margin-left:-29px; padding:2px; }\n  .hand.cards-packed .card .center-suit { font-size:16px; }\n  .hand.cards-packed .card .corner { font-size:8px; }\n  .hand.cards-packed .card.joker .center-suit { font-size:8px; }\n}\n\n@media (orientation:landscape) and (max-height:600px) {\n  body { padding-left:0; padding-right:0; }\n  .table-wrap, .table, .meld-center-zone, .board-shell { width:100%; max-width:100%; }\n  .meld-board { overflow-x:auto; overflow-y:hidden; }\n  .hand { width:100%; max-width:100%; overflow-x:hidden; justify-content:center; }\n  .hand.cards-many .card { width:50px; height:73px; margin-left:-23px; }\n  .hand.cards-crowded .card { width:43px; height:63px; margin-left:-25px; }\n  .hand.cards-packed .card { width:37px; height:54px; margin-left:-27px; }\n}\n
+
+
+/* 0.3.6 — mobile fit, drop-to-create and adaptive hand */
+html, body { max-width:100%; overflow-x:hidden; }
+main, .table-wrap, .table, .meld-center-zone, .board-shell, .meld-board, .player-zone, .hand { min-width:0; max-width:100%; }
+.table-wrap { width:100%; overflow-x:hidden; }
+.table { width:100%; }
+.meld-center-zone { box-sizing:border-box; }
+.board-shell { width:100%; overflow:hidden; }
+.board-toolbar { min-width:0; }
+.board-toolbar > * { min-width:0; }
+.meld-board { width:100%; overflow:hidden; position:relative; }
+.meld-board.free-drop-target, .meld-board.touch-drop-target {
+  outline:2px dashed rgba(255,255,255,.72);
+  outline-offset:-4px;
+  background:rgba(255,255,255,.055);
+}
+.meld-empty { pointer-events:none; }
+
+/* Ręka skaluje się wraz z liczbą kart. */
+.hand.cards-many .card { width:64px; height:94px; margin-left:-27px; }
+.hand.cards-many .card .center-suit { font-size:27px; }
+.hand.cards-crowded .card { width:56px; height:82px; margin-left:-31px; padding:4px; }
+.hand.cards-crowded .card .center-suit { font-size:23px; }
+.hand.cards-crowded .card .corner { font-size:12px; }
+.hand.cards-packed .card { width:48px; height:70px; margin-left:-34px; padding:3px; }
+.hand.cards-packed .card .center-suit { font-size:19px; }
+.hand.cards-packed .card .corner { font-size:10px; }
+.hand.cards-packed .card.joker .center-suit { font-size:10px; }
+
+@media (max-width:700px) and (orientation:portrait) {
+  body { padding-left:0; padding-right:0; }
+  header, .table-wrap { width:100%; max-width:100vw; }
+  .table { overflow:hidden; }
+  .meld-center-zone, .board-shell, .meld-board { width:100%; max-width:100%; }
+  .meld-board { min-height:215px; padding:4px; }
+  .meld-group { flex:1 1 100%; max-width:100%; }
+  .board-toolbar { width:100%; }
+  .board-toolbar .row { flex-shrink:0; }
+  .hand { width:100%; max-width:100%; overflow-x:hidden; justify-content:center; padding-left:4px; padding-right:4px; }
+  .hand.cards-many .card { width:54px; height:79px; margin-left:-26px; }
+  .hand.cards-many .card .center-suit { font-size:22px; }
+  .hand.cards-many .card .corner { font-size:11px; }
+  .hand.cards-crowded .card { width:46px; height:67px; margin-left:-28px; padding:3px; }
+  .hand.cards-crowded .card .center-suit { font-size:18px; }
+  .hand.cards-crowded .card .corner { font-size:9px; }
+  .hand.cards-packed .card { width:40px; height:59px; margin-left:-29px; padding:2px; }
+  .hand.cards-packed .card .center-suit { font-size:16px; }
+  .hand.cards-packed .card .corner { font-size:8px; }
+  .hand.cards-packed .card.joker .center-suit { font-size:8px; }
+}
+
+@media (orientation:landscape) and (max-height:600px) {
+  body { padding-left:0; padding-right:0; }
+  .table-wrap, .table, .meld-center-zone, .board-shell { width:100%; max-width:100%; }
+  .meld-board { overflow-x:auto; overflow-y:hidden; }
+  .hand { width:100%; max-width:100%; overflow-x:hidden; justify-content:center; }
+  .hand.cards-many .card { width:50px; height:73px; margin-left:-23px; }
+  .hand.cards-crowded .card { width:43px; height:63px; margin-left:-25px; }
+  .hand.cards-packed .card { width:37px; height:54px; margin-left:-27px; }
+}
+
+
+/* 0.3.7 — mobilny stół rzędowy */
+.meld-new-row-drop {
+  flex:0 0 100%;
+  width:100%;
+  min-height:20px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.20);
+  font-size:9px;
+  letter-spacing:.04em;
+  border:1px dashed transparent;
+  transition:min-height .12s, background .12s, border-color .12s, color .12s;
+}
+.meld-new-row-drop span { opacity:.35; pointer-events:none; }
+.meld-board.free-drop-target .meld-new-row-drop,
+.meld-new-row-drop.touch-drop-target {
+  min-height:36px;
+  border-color:rgba(255,255,255,.42);
+  background:rgba(255,255,255,.045);
+  color:rgba(255,255,255,.75);
+}
+.meld-board.free-drop-target .meld-new-row-drop span,
+.meld-new-row-drop.touch-drop-target span { opacity:1; }
+
+@media (max-width:900px), (orientation:landscape) and (max-height:600px) {
+  .board-shell { overflow:hidden; }
+  .meld-board {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-auto-flow:row;
+    align-content:start;
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    overscroll-behavior:contain;
+    gap:4px;
+    padding:3px;
+  }
+  .meld-group {
+    width:100%;
+    max-width:100%;
+    min-width:0 !important;
+    flex:none !important;
+  }
+  .meld-new-row-drop { min-height:18px; }
+  .meld-board.free-drop-target .meld-new-row-drop,
+  .meld-new-row-drop.touch-drop-target { min-height:34px; }
+}
+
+@media (max-width:700px) and (orientation:portrait) {
+  .meld-board { max-height:min(48dvh,430px); }
+  .meld-cards { width:100%; min-width:0; }
+  .meld-cards .card { flex-shrink:1; }
+  .hand { overflow-x:hidden !important; }
+}
+
+@media (orientation:landscape) and (max-height:600px) {
+  .meld-board {
+    max-height:calc(100dvh - 228px);
+    scrollbar-width:thin;
+  }
+  .meld-group { min-height:94px; }
+  .meld-cards { flex-wrap:wrap; min-height:70px; }
+  .meld-new-row-drop { min-height:14px; }
+  .meld-board.free-drop-target .meld-new-row-drop,
+  .meld-new-row-drop.touch-drop-target { min-height:28px; }
+}
