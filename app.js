@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const BUILD_VERSION='0.3.7';
+  const BUILD_VERSION='0.3.8';
 
   const SUITS = [
     { id:'S', symbol:'♠', name:'pik', red:false },
@@ -280,7 +280,7 @@
   function exportJson() {
     syncJsonText();
     const blob=new Blob([els.rulesJson.value],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.7.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.8.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   function makeDeck() {
@@ -299,7 +299,7 @@
       players:Array.from({length:rules.players.count},(_,i)=>({id:i,name:i===0?'Ty':`Bot ${i}`,human:i===0,hand:[],entered:false,roundWins:0})),
       deck:[], tableGroups:[], turn:0, leader:0, round:1, finished:false,
       drawnThisTurn:0, turnSnapshot:null, turnStartTableIds:new Set(), turnOwnedCardIds:new Set(), turnStartGroupSignatures:new Map(),
-      consecutiveNoPlayTurns:0
+      consecutiveNoPlayTurns:0, entryUnlockedThisTurn:false, entryProofCardIds:new Set()
     };
     activeGroupId=null; logClear(); startRound(1);
   }
@@ -318,6 +318,8 @@
     clearTimeout(aiTimer);
     const p=state.players[state.turn];
     state.drawnThisTurn=0;
+    state.entryUnlockedThisTurn=false;
+    state.entryProofCardIds=new Set();
     state.turnStartTableIds=new Set(allTableCards().map(c=>c.uid));
     state.turnOwnedCardIds=new Set(p.hand.map(c=>c.uid));
     state.turnStartGroupSignatures=new Map(state.tableGroups.map(g=>[g.id,groupSignature(g)]));
@@ -345,6 +347,8 @@
     state.players.forEach((p,i)=>{ p.hand=deepClone(snap.players[i].hand); p.entered=snap.players[i].entered; });
     activeGroupId=snap.activeGroupId ?? state.tableGroups[0]?.id ?? null;
     state.drawnThisTurn=0;
+    state.entryUnlockedThisTurn=false;
+    state.entryProofCardIds=new Set();
     state.turnStartTableIds=new Set(allTableCards().map(c=>c.uid));
     state.turnOwnedCardIds=new Set(state.players[0].hand.map(c=>c.uid));
     state.turnStartGroupSignatures=new Map(state.tableGroups.map(g=>[g.id,groupSignature(g)]));
@@ -391,6 +395,7 @@
       insertGroupAfter(g,afterGroupId);
       activeGroupId=g.id;
       cleanupEmptyGroups();
+      maybeUnlockEntry(0);
       render();
       return true;
     }
@@ -400,7 +405,7 @@
       const from=state.tableGroups.find(g=>g.id===payload.fromGroupId);
       if (!from) return false;
       const movingOldTableCard=state.turnStartTableIds.has(payload.cardUid);
-      if (!p.entered && movingOldTableCard) {
+      if (!playerHasTableAccess(0) && movingOldTableCard) {
         toast('Przed własnym wejściem nie możesz rozbierać starych układów stołu.');
         return false;
       }
@@ -452,16 +457,20 @@
     if (!canHumanManipulate()) return;
     if (!drawRequirementMet()) { toast('Najpierw dobierz kartę.'); return; }
     let group=state.tableGroups.find(g=>g.id===activeGroupId);
+    // Przed wejściem kliknięcie karty nie powinno próbować dokładać jej do
+    // starego meldunku wybranego automatycznie na początku tury. Tworzymy
+    // wtedy nowy układ roboczy, do którego można spokojnie dołożyć 2. i 3. kartę.
+    if (group && !playerHasTableAccess(0) && state.turnStartGroupSignatures.has(group.id)) group=null;
     if (!group) group=createGroup(true);
     if (!group) return;
     if (!canDropHandCardIntoGroup(group)) return;
     const p=state.players[0]; const idx=p.hand.findIndex(c=>c.uid===cardUid); if (idx<0) return;
-    const [card]=p.hand.splice(idx,1); group.cards.push(card); cleanupEmptyGroups(); render();
+    const [card]=p.hand.splice(idx,1); group.cards.push(card); cleanupEmptyGroups(); maybeUnlockEntry(0); render();
   }
 
   function canDropHandCardIntoGroup(group,showToast=true) {
     const p=state.players[state.turn];
-    if (!p.entered && rules.meld.initialMeldOwnCardsOnly && state.turnStartGroupSignatures.has(group.id)) {
+    if (!playerHasTableAccess(state.turn) && rules.meld.initialMeldOwnCardsOnly && state.turnStartGroupSignatures.has(group.id)) {
       if(showToast) toast(`Przed wejściem za ${effectiveRules().entryMin} pkt nie możesz korzystać ze starych układów stołu.`);
       return false;
     }
@@ -475,19 +484,20 @@
     const p=state.players[0];
     const from=state.tableGroups.find(g=>g.id===fromGroupId); const to=state.tableGroups.find(g=>g.id===toGroupId);
     if (!from || !to) return;
-    if (!p.entered) {
+    if (!playerHasTableAccess(0)) {
       const movingOldTableCard=state.turnStartTableIds.has(cardUid);
       const targetIsOldGroup=state.turnStartGroupSignatures.has(toGroupId);
       if (movingOldTableCard || targetIsOldGroup) { toast('Przed własnym wejściem możesz przestawiać tylko swoje karty pomiędzy nowymi układami.'); return; }
     }
     if (!rules.meld.allowRearrange && state.turnStartTableIds.has(cardUid)) { toast('Przebudowa istniejących układów jest wyłączona.'); return; }
     const idx=from.cards.findIndex(c=>c.uid===cardUid); if(idx<0) return;
-    const [card]=from.cards.splice(idx,1); to.cards.push(card); cleanupEmptyGroups(); activeGroupId=to.id; render();
+    const [card]=from.cards.splice(idx,1); to.cards.push(card); cleanupEmptyGroups(); activeGroupId=to.id; maybeUnlockEntry(0); render();
   }
 
   function returnCardToHand(cardUid,fromGroupId) {
     if (!canHumanManipulate()) return;
     if (!state.turnOwnedCardIds.has(cardUid) || state.turnStartTableIds.has(cardUid)) { toast('Karta, która była na stole przed turą, musi pozostać na stole.'); return; }
+    if (state.entryUnlockedThisTurn && state.entryProofCardIds.has(cardUid)) { toast('Ta karta potwierdziła Twoje wejście i do końca tury musi pozostać na stole.'); return; }
     const from=state.tableGroups.find(g=>g.id===fromGroupId); if (!from) return;
     const idx=from.cards.findIndex(c=>c.uid===cardUid); if(idx<0) return;
     const [card]=from.cards.splice(idx,1); state.players[0].hand.push(card); cleanupEmptyGroups(); render();
@@ -502,6 +512,38 @@
 
   function allTableCards() { return state.tableGroups.flatMap(g=>g.cards); }
   function groupSignature(g) { return [...g.cards.map(c=>c.uid)].sort().join('|'); }
+
+  function playerHasTableAccess(playerId=state?.turn) {
+    if (!state || playerId==null) return false;
+    const p=state.players[playerId];
+    return !!p && (p.entered || (state.turn===playerId && state.entryUnlockedThisTurn));
+  }
+
+  // Wejście jest osiągane natychmiast w trakcie tury. Liczymy wyłącznie
+  // ukończone, legalne NOWE układy z kart należących do bieżącego gracza.
+  // Niepełny układ roboczy obok nie blokuje osiągnięcia progu.
+  function maybeUnlockEntry(playerId=state?.turn,{quiet=false}={}) {
+    if (!state || playerId==null || state.turn!==playerId) return false;
+    const p=state.players[playerId];
+    if (!p || p.entered || state.entryUnlockedThisTurn) return false;
+    const er=effectiveRules();
+    let score=0;
+    const proofIds=[];
+    for (const group of state.tableGroups) {
+      if (!group.cards.length || state.turnStartGroupSignatures.has(group.id)) continue;
+      if (!group.cards.every(c=>state.turnOwnedCardIds.has(c.uid))) continue;
+      const analysis=analyzeGroup(group.cards);
+      if (!analysis.valid) continue;
+      score += analysis.score;
+      proofIds.push(...group.cards.map(c=>c.uid));
+    }
+    if (score < er.entryMin) return false;
+    state.entryUnlockedThisTurn=true;
+    state.entryProofCardIds=new Set(proofIds);
+    log(`${p.name}: wejście osiągnięte w trakcie tury za ${score} pkt — stół odblokowany.`);
+    if (!quiet && p.human) toast(`WEJŚCIE ✓ ${score} pkt — możesz już przebudowywać stół.`);
+    return true;
+  }
 
   const Engine=window.CardSandboxEngine;
 
@@ -533,7 +575,7 @@
 
   function verifyInitialTableUntouched(playerId) {
     const p=state.players[playerId];
-    if (p.entered || !rules.meld.initialMeldOwnCardsOnly) return true;
+    if (p.entered || state.entryUnlockedThisTurn || !rules.meld.initialMeldOwnCardsOnly) return true;
     for (const [groupId,sig] of state.turnStartGroupSignatures.entries()) {
       const current=state.tableGroups.find(g=>g.id===groupId);
       if (!current || groupSignature(current)!==sig) return false;
@@ -550,7 +592,13 @@
     if (!board.valid) { if(!ai) toast(board.reason); render(); return false; }
 
     const newlyCommitted=allTableCards().filter(c=>state.turnOwnedCardIds.has(c.uid) && !state.turnStartTableIds.has(c.uid));
-    if (!p.entered && newlyCommitted.length) {
+    if (!p.entered && state.entryUnlockedThisTurn) {
+      const tableIds=new Set(allTableCards().map(c=>c.uid));
+      const missingProof=[...state.entryProofCardIds].filter(uid=>!tableIds.has(uid));
+      if (missingProof.length) { if(!ai) toast('Karty, którymi osiągnąłeś wejście, muszą pozostać na stole do końca tury.'); return false; }
+      p.entered=true;
+      log(`${p.name}: wejście zatwierdzone.`);
+    } else if (!p.entered && newlyCommitted.length) {
       const entryScore=initialEntryScore(playerId,board);
       if (entryScore<0) { if(!ai) toast('Wejście musi być zbudowane wyłącznie z Twoich kart.'); return false; }
       if (entryScore<er.entryMin) { if(!ai) toast(`Za mało na wejście: ${entryScore} pkt. Potrzeba minimum ${er.entryMin}.`); return false; }
@@ -605,7 +653,7 @@
   function findBestEntryMelds(hand,minScore) { return Engine.findBestEntryMelds(rules,effectiveRules(),hand,minScore); }
 
   function aiRearrangeUsingTable(p) {
-    if (!p.entered || !rules.meld.allowRearrange || !state.tableGroups.length || !p.hand.length) return 0;
+    if (!playerHasTableAccess(p.id) || !rules.meld.allowRearrange || !state.tableGroups.length || !p.hand.length) return 0;
     let totalPlayed=0;
 
     // Kilka kolejnych lokalnych przebudów pozwala botowi najpierw rozbić
@@ -684,6 +732,12 @@
             const idx=p.hand.findIndex(c=>c.uid===card.uid); if(idx>=0) group.cards.push(p.hand.splice(idx,1)[0]);
           }
           state.tableGroups.push(group); played+=group.cards.length;
+        }
+        if (maybeUnlockEntry(playerId,{quiet:true})) {
+          // Tak samo jak człowiek: po osiągnięciu progu wejścia bot może od razu
+          // w tej samej turze korzystać z kart już leżących na stole.
+          played += aiRearrangeUsingTable(p);
+          played += aiExtendExistingGroups(p);
         }
       }
     } else {
@@ -768,7 +822,7 @@
     const p=state.players[0], er=effectiveRules();
     if(!p.hand.length) return 0;
 
-    if(!p.entered) {
+    if(!playerHasTableAccess(0)) {
       const entry=findBestEntryMelds(p.hand,er.entryMin);
       return entry ? entry.count : 0;
     }
@@ -804,7 +858,7 @@
     if(!state) return 'none';
     const hand=state.players[0].hand.map(c=>c.uid).sort().join(',');
     const table=state.tableGroups.map(g=>g.cards.map(c=>c.uid).sort().join(',')).sort().join(';');
-    return [state.round,state.turn,state.finished?1:0,state.players[0].entered?1:0,state.drawnThisTurn,hand,table].join('|');
+    return [state.round,state.turn,state.finished?1:0,state.players[0].entered?1:0,state.entryUnlockedThisTurn?1:0,state.drawnThisTurn,hand,table].join('|');
   }
 
   function setDiscardHint(count,message=null) {
@@ -853,7 +907,7 @@
     els.turnLabel.textContent=state.finished?'Koniec gry':`Runda ${state.round}/${rules.game.totalRounds} · tura: ${p.name}`;
     els.activeRuleHint.textContent=`wejście ${er.entryMin} · As 1/${rules.cardModel.rankPoints.A} · stół transakcyjny`;
     els.scoreLabel.textContent=state.players.map(pl=>`${pl.name}: ${pl.roundWins}W`).join(' · ');
-    els.humanStatus.textContent=`Ty · ${state.players[0].entered?'WEJŚCIE ✓':'bez wejścia'}`;
+    els.humanStatus.textContent=`Ty · ${state.players[0].entered?'WEJŚCIE ✓':state.entryUnlockedThisTurn?'WEJŚCIE ✓ (ta tura)':'bez wejścia'}`;
     els.playerMetaScore.textContent=`Ręka: ${state.players[0].hand.length} kart · ${handValue(state.players[0].hand)} pkt`;
     scheduleDiscardHint();
     els.undoTurnBtn.disabled=!canHumanManipulate();
@@ -886,13 +940,18 @@
       const empty=document.createElement('div'); empty.className='meld-empty'; empty.textContent='Stół jest pusty. Dobierz kartę i przeciągnij ją tutaj.'; els.meldBoard.appendChild(empty);
       appendNewRowDrop(null);
     }
-    let validCount=0, invalidCount=0;
+    let validCount=0, invalidCount=0, draftCount=0;
+    const minMeld=Math.min(rules.meld.runMin,rules.meld.setMin);
     for(const group of state.tableGroups) {
       const analysis=group.cards.length?analyzeGroup(group.cards):invalidAnalysis('Pusty układ');
-      if(analysis.valid) validCount++; else if(group.cards.length) invalidCount++;
-      const box=document.createElement('div'); box.className=`meld-group ${group.id===activeGroupId?'active':''} ${group.cards.length?(analysis.valid?'valid':'invalid'):''}`; box.dataset.groupId=group.id;
-      const status=group.cards.length ? (analysis.valid ? `✓ ${analysis.type==='run'?'sekwens':'grupa'} · ${analysis.score} pkt` : `✕ ${analysis.reason}`) : 'pusty — wrzuć karty';
-      box.innerHTML=`<div class="meld-head"><span>Układ ${escapeHtml(group.id.replace('g','#'))}</span><span class="meld-status ${analysis.valid?'valid':'invalid'}">${escapeHtml(status)}</span></div><div class="meld-cards"></div>`;
+      const isDraft=!analysis.valid && group.cards.length>0 && group.cards.length<minMeld &&
+        state.turn===0 && !state.turnStartGroupSignatures.has(group.id) &&
+        group.cards.every(c=>state.turnOwnedCardIds.has(c.uid));
+      if(analysis.valid) validCount++; else if(isDraft) draftCount++; else if(group.cards.length) invalidCount++;
+      const stateClass=analysis.valid?'valid':isDraft?'draft':'invalid';
+      const box=document.createElement('div'); box.className=`meld-group ${group.id===activeGroupId?'active':''} ${group.cards.length?stateClass:''}`; box.dataset.groupId=group.id;
+      const status=group.cards.length ? (analysis.valid ? `✓ ${analysis.type==='run'?'sekwens':'grupa'} · ${analysis.score} pkt` : isDraft ? `… układ roboczy · ${group.cards.length}/${minMeld}` : `✕ ${analysis.reason}`) : 'pusty — wrzuć karty';
+      box.innerHTML=`<div class="meld-head"><span>Układ ${escapeHtml(group.id.replace('g','#'))}</span><span class="meld-status ${stateClass}">${escapeHtml(status)}</span></div><div class="meld-cards"></div>`;
       box.addEventListener('click',e=>{ if(e.target.closest('.card')) return; activeGroupId=group.id; renderBoard(); });
       setupGroupDrop(box,group);
       const cardsEl=box.querySelector('.meld-cards');
@@ -900,7 +959,7 @@
       for(const card of displayCards) {
         const node=cardElement(card,analysis.jokerAssignments?.[card.uid]);
         if(canHumanManipulate() && drawRequirementMet()) {
-          const canMove=state.players[0].entered && (rules.meld.allowRearrange || !state.turnStartTableIds.has(card.uid));
+          const canMove=playerHasTableAccess(0) && (rules.meld.allowRearrange || !state.turnStartTableIds.has(card.uid));
           if(canMove || state.turnOwnedCardIds.has(card.uid)) {
             node.draggable=true; node.classList.add('clickable');
             node.addEventListener('dragstart',e=>{ dragPayload={type:'table',cardUid:card.uid,fromGroupId:group.id}; node.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
@@ -920,9 +979,9 @@
       els.meldBoard.appendChild(box);
       appendNewRowDrop(group.id);
     }
-    const allValid=invalidCount===0;
-    els.boardValidation.className=`board-validation ${allValid?'ok':'bad'}`;
-    els.boardValidation.textContent=allValid ? `${validCount} poprawnych układów` : `${invalidCount} niepoprawnych układów`;
+    const allValid=invalidCount===0 && draftCount===0;
+    els.boardValidation.className=`board-validation ${invalidCount?'bad':draftCount?'pending':'ok'}`;
+    els.boardValidation.textContent=invalidCount ? `${invalidCount} niepoprawnych układów` : draftCount ? `${draftCount} układ roboczy — dokończ przed PROSZĘ` : `${validCount} poprawnych układów`;
   }
 
   function setupGroupDrop(box,group) {
@@ -942,7 +1001,7 @@
     const group=state.tableGroups.find(g=>g.id===groupId); if(!group) return;
     if(!canDropHandCardIntoGroup(group)) return;
     const p=state.players[0]; const idx=p.hand.findIndex(c=>c.uid===cardUid); if(idx<0)return;
-    group.cards.push(p.hand.splice(idx,1)[0]); activeGroupId=groupId; render();
+    group.cards.push(p.hand.splice(idx,1)[0]); activeGroupId=groupId; maybeUnlockEntry(0); render();
   }
 
   function renderHumanHand() {
@@ -1243,7 +1302,7 @@
     els.rulesHumanView.innerHTML=`
       <section class="rule-section"><h3>Przebieg tury</h3><ul>
         <li>Każdy gracz zaczyna z ${er.handSize} kartami i na początku swojej tury dobiera ${er.drawPerTurn} kartę/karty, o ile talia nie jest pusta.</li>
-        <li>W czasie tury wolno wykonywać wiele zmian. Dopiero <strong>PROSZĘ →</strong> zatwierdza cały stan stołu.</li>
+        <li>W czasie tury wolno wykonywać wiele zmian. Układ może być chwilowo niepełny podczas dokładania kart; dopiero <strong>PROSZĘ →</strong> wymaga kompletnego, legalnego stołu.</li>
         <li>Po zatwierdzeniu nie może zostać żadna samotna karta ani niepełny układ.</li>
       </ul></section>
       <section class="rule-section"><h3>Legalne układy</h3><ul>
@@ -1259,7 +1318,7 @@
       </ul></section>
       <section class="rule-section"><h3>Wejście i przebudowa stołu</h3><ul>
         <li>Pierwsze wyłożenie musi mieć łącznie co najmniej <strong>${er.entryMin} punktów</strong>${rules.meld.initialMeldOwnCardsOnly?' i powstaje wyłącznie z kart gracza':''}.</li>
-        <li>Po wejściu ${rules.meld.allowRearrange?'można rozbierać i przebudowywać istniejące układy':'nie wolno przebudowywać istniejących układów'}.</li>
+        <li>Gdy w trakcie tury wyłożysz legalny układ/układy za co najmniej <strong>${er.entryMin} pkt</strong>, wejście odblokowuje się <strong>natychmiast</strong>; w tej samej turze ${rules.meld.allowRearrange?'możesz już rozbierać i przebudowywać stół':'nadal nie wolno przebudowywać istniejących układów'}.</li>
         <li>Każda karta, która była na stole przed turą, musi nadal znajdować się na stole po kliknięciu PROSZĘ.</li>
         <li>Joker ze stołu może zmienić miejsce, jeżeli po końcu tury wszystkie układy nadal są legalne.</li>
       </ul></section>

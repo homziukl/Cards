@@ -1,4 +1,4 @@
-# Card Sandbox 0.3.7 — Siódemki Mobile
+# Card Sandbox 0.3.8 — Siódemki Mobile
 
 Lokalny proof-of-concept karcianego sandboxa z presetem **Siódemki**, botem korzystającym ze stołu i solverem podpowiadającym, ilu kart można się jeszcze pozbyć. Nie wymaga instalacji ani serwera — otwórz `index.html` w nowoczesnej przeglądarce albo opublikuj katalog przez GitHub Pages.
 
@@ -62,3 +62,10 @@ Do repozytorium GitHub wrzuć zawartość tego katalogu tak, aby `index.html`, `
 - Pomiędzy układami są subtelne strefy upuszczania; przeciągnięcie tam karty tworzy nowy rząd.
 - Działa w pionie i poziomie; w landscape przewijanie stołu jest pionowe.
 - Naprawiono CSS z 0.3.6 tak, aby reguły dopasowania szerokości i skalowania ręki były rzeczywiście stosowane.
+
+
+## 0.3.8 — wejście natychmiastowe
+- Nowy meld może być chwilowo niepełny podczas układania; pełna walidacja następuje przy PROSZĘ.
+- Osiągnięcie minimum wejścia (domyślnie 30 pkt) odblokowuje stół od razu w tej samej turze.
+- Karty użyte do potwierdzenia wejścia muszą pozostać na stole do końca tej tury, ale można je przestawiać pomiędzy układami.
+- Kliknięcie karty przed wejściem nie próbuje już wrzucać jej do starego układu stołu; tworzy nowy układ roboczy.
