@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const BUILD_VERSION='0.3.5';
+
   const SUITS = [
     { id:'S', symbol:'♠', name:'pik', red:false },
     { id:'H', symbol:'♥', name:'kier', red:true },
@@ -278,7 +280,7 @@
   function exportJson() {
     syncJsonText();
     const blob=new Blob([els.rulesJson.value],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.4.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.5.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   function makeDeck() {
@@ -959,24 +961,30 @@
   function attachTouchDrag(node,payloadFactory) {
     node.classList.add('touch-draggable');
     node.addEventListener('pointerdown',e=>{
-      if(e.pointerType==='mouse' || e.button!==0 || touchDrag) return;
+      // Mysz korzysta z natywnego HTML5 DnD; ten tor jest dla palca/pióra.
+      if(e.pointerType==='mouse' || (typeof e.button==='number' && e.button!==0) || touchDrag) return;
       const payload=payloadFactory();
       if(!payload) return;
       touchDrag={ pointerId:e.pointerId, node, payload, startX:e.clientX, startY:e.clientY, dragging:false, ghost:null, lastTarget:null };
-      try { node.setPointerCapture(e.pointerId); } catch (_) {}
-    });
-    node.addEventListener('pointermove',e=>{
-      if(!touchDrag || touchDrag.pointerId!==e.pointerId || touchDrag.node!==node) return;
-      const dx=e.clientX-touchDrag.startX, dy=e.clientY-touchDrag.startY;
-      if(!touchDrag.dragging && Math.hypot(dx,dy)>=8) startTouchDrag(e);
-      if(!touchDrag.dragging) return;
-      e.preventDefault();
-      moveTouchGhost(e.clientX,e.clientY);
-      autoScrollTouchZones(e.clientX,e.clientY);
-      paintTouchDropTarget(e.clientX,e.clientY);
-    },{passive:false});
-    node.addEventListener('pointerup',e=>finishTouchDrag(e,false));
-    node.addEventListener('pointercancel',e=>finishTouchDrag(e,true));
+      // Nie przechwytujemy pointera na elemencie. Na części mobilnych WebKitów
+      // capture + elementFromPoint potrafiło zgubić prawdziwy cel upuszczenia.
+    },{passive:true});
+  }
+
+  function handleGlobalPointerMove(e) {
+    if(!touchDrag || touchDrag.pointerId!==e.pointerId) return;
+    const dx=e.clientX-touchDrag.startX, dy=e.clientY-touchDrag.startY;
+    if(!touchDrag.dragging && Math.hypot(dx,dy)>=7) startTouchDrag(e);
+    if(!touchDrag.dragging) return;
+    e.preventDefault();
+    moveTouchGhost(e.clientX,e.clientY);
+    autoScrollTouchZones(e.clientX,e.clientY);
+    paintTouchDropTarget(e.clientX,e.clientY);
+  }
+
+  function handleGlobalPointerUp(e,cancelled=false) {
+    if(!touchDrag || touchDrag.pointerId!==e.pointerId) return;
+    finishTouchDrag(e,cancelled);
   }
 
   function startTouchDrag(e) {
@@ -1061,7 +1069,6 @@
       if(!cancelled) performTouchDrop(e.clientX,e.clientY,td.payload);
       suppressClickUntil=Date.now()+500;
     }
-    try { td.node.releasePointerCapture(e.pointerId); } catch (_) {}
     td.node.classList.remove('dragging');
     td.ghost?.remove();
     document.body.classList.remove('touch-dragging');
@@ -1183,12 +1190,15 @@
   els.discardHint.addEventListener('click',()=>{ if(els.discardHint.title) toast(els.discardHint.title); });
   window.addEventListener('resize',syncEditorViewportState);
   window.addEventListener('orientationchange',syncEditorViewportState);
+  window.addEventListener('pointermove',handleGlobalPointerMove,{passive:false});
+  window.addEventListener('pointerup',e=>handleGlobalPointerUp(e,false),{passive:false});
+  window.addEventListener('pointercancel',e=>handleGlobalPointerUp(e,true),{passive:false});
 
   const formIds=['deckCount','jokersPerDeck','playerCount','handSize','totalRounds','botStyle','entryMin','drawPerTurn','runMin','setMin','aceLow','aceHigh','jokerWild','allowRearrange','initialMeldOwnCardsOnly'];
   for(const id of formIds) els[id].addEventListener('change',()=>{readFormIntoEditorModel();if(id==='totalRounds')renderRoundRulesEditor();syncJsonText();});
 
   // Mały interfejs diagnostyczny do przyszłych testów silnika.
-  window.CardSandboxDebug={ analyzeGroup:(cards)=>analyzeGroup(cards), getRules:()=>deepClone(rules) };
+  window.CardSandboxDebug={ build:BUILD_VERSION, analyzeGroup:(cards)=>analyzeGroup(cards), getRules:()=>deepClone(rules) };
 
   setEditorOpen(false);
   syncFormFromEditorModel(); rules=deepClone(editorModel); newGame();

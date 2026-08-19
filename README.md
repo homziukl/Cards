@@ -1,4 +1,4 @@
-# Card Sandbox 0.3.4 — Siódemki Mobile
+# Card Sandbox 0.3.5 — Siódemki Mobile
 
 Lokalny proof-of-concept karcianego sandboxa z presetem **Siódemki**, botem korzystającym ze stołu i solverem podpowiadającym, ilu kart można się jeszcze pozbyć. Nie wymaga instalacji ani serwera — otwórz `index.html` w nowoczesnej przeglądarce albo opublikuj katalog przez GitHub Pages.
 
@@ -49,3 +49,12 @@ Bot potrafi szukać takich przebudów i może korzystać z kart, które już le�
 ## Publikacja
 
 Do repozytorium GitHub wrzuć zawartość tego katalogu tak, aby `index.html`, `app.js`, `engine-core.js` i `style.css` leżały obok siebie w katalogu publikowanym przez GitHub Pages.
+
+## 0.3.5 — poprawka mobile/deploy
+
+- cache-busting dla `style.css`, `engine-core.js` i `app.js`,
+- meta no-cache dla dokumentu HTML,
+- stabilniejszy drag palcem/piórem oparty o globalne Pointer Events,
+- bez `setPointerCapture`, które na części przeglądarek mobilnych potrafiło zgubić cel dropu,
+- edytor nadal domyślnie zamknięty,
+- layout pionowy i poziomy pozostaje aktywny.

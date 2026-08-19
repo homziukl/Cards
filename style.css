@@ -308,3 +308,16 @@ body.touch-dragging { overflow:hidden; overscroll-behavior:none; }
   .statusbar > :last-child { text-align:right; }
   .deck-column { display:block; }
 }
+
+
+/* 0.3.5 — stabilniejszy dotyk i cache-busting build */
+@media (pointer:coarse) {
+  .card.touch-draggable {
+    touch-action:none;
+    -webkit-user-drag:none;
+  }
+}
+@media (max-width:700px) {
+  .meld-board, .hand { -webkit-overflow-scrolling:touch; }
+  .card { -webkit-tap-highlight-color:transparent; }
+}
