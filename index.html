@@ -3,16 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <title>Card Sandbox 0.3.5 — Siódemki Mobile</title>
-  <link rel="stylesheet" href="style.css?v=0.3.5" />
+  <title>Card Sandbox 0.3.6 — Siódemki Mobile</title>
+  <link rel="stylesheet" href="style.css?v=0.3.6" />
 </head>
 <body>
   <header>
     <div>
-      <h1>Card Sandbox <span class="version">0.3.5</span></h1>
+      <h1>Card Sandbox <span class="version">0.3.6</span></h1>
       <p>Preset „Siódemki”: remikowy stół z przebudową meldów i podpowiedzią solvera.</p>
     </div>
     <div class="header-actions">
@@ -130,13 +127,12 @@
                 <span id="boardValidation" class="board-validation">—</span>
               </div>
               <div class="row">
-                <button id="newGroupBtn" class="secondary">+ Nowy układ</button>
                 <button id="undoTurnBtn" class="secondary">Cofnij turę</button>
                 <button id="endTurnBtn" class="commit">PROSZĘ →</button>
               </div>
             </div>
             <div id="meldBoard" class="meld-board"></div>
-            <div class="board-help">Kliknij układ, aby go uaktywnić. Kartę możesz kliknąć albo przeciągnąć myszą/palcem. Na telefonie przeciągaj bezpośrednio między ręką i układami. Nową kartę z tej tury możesz przeciągnąć z powrotem do ręki; starych kart ze stołu — nie.</div>
+            <div class="board-help">Przeciągnij kartę na istniejący układ, aby ją dołożyć. Upuść kartę w wolnym miejscu stołu, aby automatycznie utworzyć nowy układ. Nową kartę z tej tury możesz przeciągnąć z powrotem do ręki; starych kart ze stołu — nie.</div>
           </div>
         </div>
 
@@ -169,7 +165,7 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script src="engine-core.js?v=0.3.5"></script>
-  <script src="app.js?v=0.3.5"></script>
+  <script src="engine-core.js?v=0.3.6"></script>
+  <script src="app.js?v=0.3.6"></script>
 </body>
 </html>

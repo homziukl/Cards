@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const BUILD_VERSION='0.3.5';
+  const BUILD_VERSION='0.3.6';
 
   const SUITS = [
     { id:'S', symbol:'♠', name:'pik', red:false },
@@ -17,7 +17,7 @@
     'entryMin','drawPerTurn','runMin','setMin','aceLow','aceHigh','jokerWild','allowRearrange','initialMeldOwnCardsOnly',
     'rankEditor','roundRulesList','addRoundRuleBtn','applyRulesBtn','newGameBtn','exportBtn','loadJsonBtn','syncJsonBtn','rulesJson',
     'rulesPanel','toggleEditorBtn','closeEditorInlineBtn','showRulesBtn','activeRuleHint','rulesDialog','closeRulesDialogBtn','rulesHumanView','rulesDialogSubtitle',
-    'turnLabel','scoreLabel','opponents','deckPile','deckCountLabel','drawBtn','drawState','newGroupBtn','undoTurnBtn','endTurnBtn',
+    'turnLabel','scoreLabel','opponents','deckPile','deckCountLabel','drawBtn','drawState','undoTurnBtn','endTurnBtn',
     'meldBoard','boardValidation','playerHand','humanStatus','discardHint','playerMetaScore','log','toast'
   ];
   const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
@@ -280,7 +280,7 @@
   function exportJson() {
     syncJsonText();
     const blob=new Blob([els.rulesJson.value],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.5.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='card-sandbox-siodemki-v0.3.6.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   function makeDeck() {
@@ -369,6 +369,72 @@
     if (!canHumanManipulate()) return null;
     if (!drawRequirementMet()) { toast('Najpierw dobierz kartę.'); return null; }
     const g={id:`g${groupUid++}`,cards:[]}; state.tableGroups.push(g); if (select) activeGroupId=g.id; render(); return g;
+  }
+
+  function createGroupFromDrop(payload) {
+    if (!canHumanManipulate()) return false;
+    if (!drawRequirementMet()) { toast('Najpierw dobierz kartę.'); return false; }
+    if (!payload) return false;
+
+    if (payload.type==='hand') {
+      const p=state.players[0];
+      const idx=p.hand.findIndex(c=>c.uid===payload.cardUid);
+      if (idx<0) return false;
+      const g={id:`g${groupUid++}`,cards:[p.hand.splice(idx,1)[0]]};
+      state.tableGroups.push(g);
+      activeGroupId=g.id;
+      cleanupEmptyGroups();
+      render();
+      return true;
+    }
+
+    if (payload.type==='table') {
+      const p=state.players[0];
+      const from=state.tableGroups.find(g=>g.id===payload.fromGroupId);
+      if (!from) return false;
+      const movingOldTableCard=state.turnStartTableIds.has(payload.cardUid);
+      if (!p.entered && movingOldTableCard) {
+        toast('Przed własnym wejściem nie możesz rozbierać starych układów stołu.');
+        return false;
+      }
+      if (!rules.meld.allowRearrange && movingOldTableCard) {
+        toast('Przebudowa istniejących układów jest wyłączona.');
+        return false;
+      }
+      const idx=from.cards.findIndex(c=>c.uid===payload.cardUid);
+      if (idx<0) return false;
+      const [card]=from.cards.splice(idx,1);
+      const g={id:`g${groupUid++}`,cards:[card]};
+      state.tableGroups.push(g);
+      activeGroupId=g.id;
+      cleanupEmptyGroups();
+      render();
+      return true;
+    }
+    return false;
+  }
+
+  let boardFreeDropSetup=false;
+  function setupBoardFreeDropOnce() {
+    if(boardFreeDropSetup) return;
+    boardFreeDropSetup=true;
+    els.meldBoard.addEventListener('dragover',e=>{
+      if(!dragPayload || !canHumanManipulate() || e.target.closest('.meld-group')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      els.meldBoard.classList.add('free-drop-target');
+    });
+    els.meldBoard.addEventListener('dragleave',e=>{
+      if(!els.meldBoard.contains(e.relatedTarget)) els.meldBoard.classList.remove('free-drop-target');
+    });
+    els.meldBoard.addEventListener('drop',e=>{
+      if(e.target.closest('.meld-group')) return;
+      e.preventDefault();
+      els.meldBoard.classList.remove('free-drop-target');
+      const payload=dragPayload;
+      dragPayload=null;
+      createGroupFromDrop(payload);
+    });
   }
 
   function addHandCardToActive(cardUid) {
@@ -779,7 +845,6 @@
     els.humanStatus.textContent=`Ty · ${state.players[0].entered?'WEJŚCIE ✓':'bez wejścia'}`;
     els.playerMetaScore.textContent=`Ręka: ${state.players[0].hand.length} kart · ${handValue(state.players[0].hand)} pkt`;
     scheduleDiscardHint();
-    els.newGroupBtn.disabled=!canHumanManipulate() || !drawRequirementMet();
     els.undoTurnBtn.disabled=!canHumanManipulate();
     els.endTurnBtn.disabled=!canHumanManipulate();
     renderOpponents(); renderBoard(); renderHumanHand();
@@ -799,7 +864,7 @@
   function renderBoard() {
     els.meldBoard.innerHTML='';
     if(!state.tableGroups.length) {
-      const empty=document.createElement('div'); empty.className='meld-empty'; empty.textContent='Stół jest pusty. Dobierz kartę i utwórz pierwszy układ.'; els.meldBoard.appendChild(empty);
+      const empty=document.createElement('div'); empty.className='meld-empty'; empty.textContent='Stół jest pusty. Dobierz kartę i przeciągnij ją tutaj — nowy układ utworzy się automatycznie.'; els.meldBoard.appendChild(empty);
     }
     let validCount=0, invalidCount=0;
     for(const group of state.tableGroups) {
@@ -843,7 +908,7 @@
     box.addEventListener('dragover',e=>{ if(!canHumanManipulate())return; e.preventDefault(); e.dataTransfer.dropEffect='move'; box.classList.add('active'); });
     box.addEventListener('dragleave',()=>{ if(group.id!==activeGroupId) box.classList.remove('active'); });
     box.addEventListener('drop',e=>{
-      e.preventDefault(); activeGroupId=group.id;
+      e.preventDefault(); e.stopPropagation(); activeGroupId=group.id;
       if(!dragPayload) return;
       if(dragPayload.type==='hand') {
         if(canDropHandCardIntoGroup(group)) addHandCardToSpecificGroup(dragPayload.cardUid,group.id);
@@ -861,6 +926,10 @@
 
   function renderHumanHand() {
     const p=state.players[0]; els.playerHand.innerHTML='';
+    const handCount=p.hand.length;
+    els.playerHand.classList.toggle('cards-many',handCount>=10);
+    els.playerHand.classList.toggle('cards-crowded',handCount>=14);
+    els.playerHand.classList.toggle('cards-packed',handCount>=18);
     const humanTurn=canHumanManipulate();
     p.hand.forEach((card,index)=>{
       const node=cardElement(card);
@@ -1047,9 +1116,14 @@
     if(!below || !touchDrag) return;
     const groupEl=below.closest?.('.meld-group');
     const handEl=below.closest?.('#playerHand');
+    const boardEl=below.closest?.('#meldBoard');
     if(groupEl) {
       const group=state.tableGroups.find(g=>g.id===groupEl.dataset.groupId);
       if(group && (touchDrag.payload.type==='table' || canDropHandCardIntoGroup(group))) groupEl.classList.add('touch-drop-target');
+      return;
+    }
+    if(boardEl) {
+      boardEl.classList.add('touch-drop-target');
       return;
     }
     if(handEl) {
@@ -1082,6 +1156,7 @@
     if(!below || !payload) return;
     const groupEl=below.closest?.('.meld-group');
     const handEl=below.closest?.('#playerHand');
+    const boardEl=below.closest?.('#meldBoard');
     if(groupEl) {
       const group=state.tableGroups.find(g=>g.id===groupEl.dataset.groupId);
       if(!group) return;
@@ -1091,6 +1166,10 @@
       } else if(payload.type==='table') {
         moveTableCard(payload.cardUid,payload.fromGroupId,group.id);
       }
+      return;
+    }
+    if(boardEl) {
+      createGroupFromDrop(payload);
       return;
     }
     if(handEl) {
@@ -1184,7 +1263,6 @@
   els.closeRulesDialogBtn.addEventListener('click',()=>els.rulesDialog.close());
   els.deckPile.addEventListener('click',()=>drawCard(0));
   els.drawBtn.addEventListener('click',()=>drawCard(0));
-  els.newGroupBtn.addEventListener('click',()=>createGroup(true));
   els.undoTurnBtn.addEventListener('click',undoTurn);
   els.endTurnBtn.addEventListener('click',()=>endTurn(0));
   els.discardHint.addEventListener('click',()=>{ if(els.discardHint.title) toast(els.discardHint.title); });
@@ -1200,6 +1278,7 @@
   // Mały interfejs diagnostyczny do przyszłych testów silnika.
   window.CardSandboxDebug={ build:BUILD_VERSION, analyzeGroup:(cards)=>analyzeGroup(cards), getRules:()=>deepClone(rules) };
 
+  setupBoardFreeDropOnce();
   setEditorOpen(false);
   syncFormFromEditorModel(); rules=deepClone(editorModel); newGame();
 })();
