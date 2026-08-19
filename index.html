@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Card Sandbox 0.3.3 — Siódemki</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Card Sandbox <span class="version">0.3.3</span></h1>
+      <p>Preset „Siódemki”: remikowy stół z przebudową meldów i podpowiedzią solvera.</p>
+    </div>
+    <div class="header-actions">
+      <button id="newGameBtn">Nowa gra</button>
+      <button id="showRulesBtn" class="secondary">Zasady</button>
+      <button id="toggleEditorBtn" class="secondary">Edytor</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="rulesPanel" class="panel">
+      <h2>Konfiguracja</h2>
+
+      <h3>Stół</h3>
+      <div class="grid2">
+        <label>Liczba talii
+          <input id="deckCount" type="number" min="1" max="8" value="2" />
+        </label>
+        <label>Jokery / talię
+          <input id="jokersPerDeck" type="number" min="0" max="4" value="1" />
+        </label>
+        <label>Gracze
+          <input id="playerCount" type="number" min="2" max="6" value="2" />
+        </label>
+        <label>Kart na rękę
+          <input id="handSize" type="number" min="1" max="30" value="7" />
+        </label>
+        <label>Liczba rund
+          <input id="totalRounds" type="number" min="1" max="20" value="1" />
+        </label>
+        <label>Bot
+          <select id="botStyle">
+            <option value="careful" selected>Rozsądny</option>
+            <option value="greedy">Wykłada ile może</option>
+            <option value="random">Losowy</option>
+          </select>
+        </label>
+      </div>
+
+      <section class="mode-section">
+        <h3>Zasady Układanki</h3>
+        <div class="grid2">
+          <label>Minimum wejścia
+            <input id="entryMin" type="number" min="0" max="999" value="30" />
+          </label>
+          <label>Dobieranie / turę
+            <input id="drawPerTurn" type="number" min="0" max="10" value="1" />
+          </label>
+          <label>Min. sekwens
+            <input id="runMin" type="number" min="3" max="13" value="3" />
+          </label>
+          <label>Min. grupa
+            <input id="setMin" type="number" min="3" max="4" value="3" />
+          </label>
+        </div>
+        <label class="check"><input id="aceLow" type="checkbox" checked /> As może być przed 2 i wtedy liczy się jako 1</label>
+        <label class="check"><input id="aceHigh" type="checkbox" checked /> As może kończyć sekwens po królu i wtedy liczy się jako 11</label>
+        <label class="check"><input id="jokerWild" type="checkbox" checked /> Jokery są dzikie</label>
+        <label class="check"><input id="allowRearrange" type="checkbox" checked /> Po wejściu wolno przebudowywać cały stół</label>
+        <label class="check"><input id="initialMeldOwnCardsOnly" type="checkbox" checked /> Wejście ≥ minimum wyłącznie własnymi kartami</label>
+      </section>
+
+      <details id="advancedEditor" open>
+        <summary>Zaawansowany edytor wartości kart</summary>
+        <p class="microcopy">Kolejność służy sekwensom. Wartość służy wejściu i liczeniu ręki. Dla tego presetu J/Q/K = 10, A = 11; niski As w sekwensie dynamicznie = 1.</p>
+        <div id="rankEditor" class="order-editor"></div>
+      </details>
+
+      <details id="roundEditor" open>
+        <summary>Zasady poszczególnych rund</summary>
+        <p class="microcopy">Puste pole = reguła bazowa. Nadpisanie działa tylko w wybranej rundzie.</p>
+        <div id="roundRulesList" class="round-rules-list"></div>
+        <button id="addRoundRuleBtn" class="secondary full">+ Dodaj regułę rundy</button>
+      </details>
+
+      <div class="row sticky-actions">
+        <button id="applyRulesBtn">Zastosuj i rozdaj</button>
+        <button id="exportBtn" class="secondary">Eksport JSON</button>
+      </div>
+
+      <details>
+        <summary>JSON całej gry</summary>
+        <textarea id="rulesJson" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="loadJsonBtn" class="secondary">Wczytaj JSON</button>
+          <button id="syncJsonBtn" class="secondary">Odśwież JSON</button>
+        </div>
+      </details>
+    </aside>
+
+    <section class="table-wrap">
+      <div class="statusbar">
+        <div><strong id="turnLabel">—</strong></div>
+        <button id="activeRuleHint" class="rule-chip" title="Pokaż aktywne zasady">—</button>
+        <div id="scoreLabel">—</div>
+      </div>
+
+      <div id="table" class="table meld-table">
+        <div id="opponents" class="opponents"></div>
+
+        <div class="meld-center-zone">
+          <div class="pile-box deck-column">
+            <div class="pile-title">Talia</div>
+            <button id="deckPile" class="deck-card back" aria-label="Dobierz kartę"></button>
+            <div id="deckCountLabel" class="pile-count">0</div>
+            <button id="drawBtn" class="tiny secondary">Dobierz 1</button>
+            <div id="drawState" class="microcopy center-text"></div>
+          </div>
+
+          <div class="board-shell">
+            <div class="board-toolbar">
+              <div>
+                <strong>Stół</strong>
+                <span id="boardValidation" class="board-validation">—</span>
+              </div>
+              <div class="row">
+                <button id="newGroupBtn" class="secondary">+ Nowy układ</button>
+                <button id="undoTurnBtn" class="secondary">Cofnij turę</button>
+                <button id="endTurnBtn" class="commit">PROSZĘ →</button>
+              </div>
+            </div>
+            <div id="meldBoard" class="meld-board"></div>
+            <div class="board-help">Kliknij układ, aby go uaktywnić. Kliknięcie karty z ręki przenosi ją do aktywnego układu. Karty można też przeciągać między układami. Nową kartę z tej tury możesz przeciągnąć z powrotem do ręki; starych kart ze stołu — nie.</div>
+          </div>
+        </div>
+
+        <div class="player-zone">
+          <div class="player-meta">
+            <span id="humanStatus">Ty</span>
+            <span class="player-meta-right"><span id="discardHint" class="discard-hint pending" title="Solver sprawdzi, ilu kart możesz się jeszcze pozbyć.">↘ …</span><span id="playerMetaScore">Ręka: 0</span></span>
+          </div>
+          <div id="playerHand" class="hand hand-dropzone" title="Przeciągaj karty, aby ułożyć rękę po swojemu"></div>
+          <div class="microcopy center-text">Karty w ręce możesz przeciągać i układać w dowolnej kolejności.</div>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <h3>Log silnika</h3>
+        <div id="log"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="rulesDialog">
+    <div class="dialog-head">
+      <div>
+        <h2>Zasady gry</h2>
+        <p id="rulesDialogSubtitle">Aktywne reguły</p>
+      </div>
+      <button id="closeRulesDialogBtn" class="secondary">Zamknij</button>
+    </div>
+    <div id="rulesHumanView" class="rules-human-view"></div>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="engine-core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
